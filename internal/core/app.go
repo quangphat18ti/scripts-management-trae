@@ -18,19 +18,23 @@ import (
 )
 
 type App struct {
-	config        *config.Config
-	logger        *zap.Logger
-	fiber         *fiber.App
-	authHandler   *handlers.AuthHandler
-	userHandler   *handlers.UserHandler
-	userService   *services.UserService
-	scriptHandler *handlers.ScriptHandler
-	jwtManager    *utils.JWTManager
+	config         *config.Config
+	logger         *zap.Logger
+	fiber          *fiber.App
+	authHandler    *handlers.AuthHandler
+	userHandler    *handlers.UserHandler
+	userService    *services.UserService
+	scriptHandler  *handlers.ScriptHandler
+	processHandler *handlers.ProcessHandler
+	jwtManager     *utils.JWTManager
 }
 
 func NewApp(config *config.Config, logger *zap.Logger, db *mongo.Database) *App {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
+	scriptRepo := repository.NewScriptRepository(db)
+	scriptShareRepo := repository.NewScriptShareRepository(db)
+	processRepo := repository.NewProcessRepository(db)
 
 	// Initialize JWT manager
 	jwtManager, err := utils.NewJWTManager()
@@ -40,15 +44,29 @@ func NewApp(config *config.Config, logger *zap.Logger, db *mongo.Database) *App 
 
 	// Initialize services
 	authService := services.NewAuthService(userRepo, jwtManager)
+	userService, err := services.NewUserService(userRepo, config, authService)
+	if err != nil {
+		logger.Fatal("Failed to initialize user service", zap.Error(err))
+	}
+	scriptService := services.NewScriptService(scriptRepo, scriptShareRepo, userRepo)
+	processService := services.NewProcessService(processRepo, scriptRepo, scriptService, logger)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
+	userHandler := handlers.NewUserHandler(userService)
+	scriptHandler := handlers.NewScriptHandler(scriptService)
+	processHandler := handlers.NewProcessHandler(processService)
 
 	app := &App{
-		config:      config,
-		logger:      logger,
-		fiber:       fiber.New(),
-		authHandler: authHandler,
+		config:         config,
+		logger:         logger,
+		fiber:          fiber.New(),
+		authHandler:    authHandler,
+		userHandler:    userHandler,
+		userService:    userService,
+		scriptHandler:  scriptHandler,
+		processHandler: processHandler,
+		jwtManager:     jwtManager,
 	}
 
 	// setup logger for apps
@@ -100,6 +118,13 @@ func (a *App) setupRoutes() {
 	scripts.Delete("/:id", a.scriptHandler.DeleteScript)
 	scripts.Post("/:id/share", a.scriptHandler.ShareScript)
 	scripts.Delete("/:id/share/:userId", a.scriptHandler.RevokeShare)
+
+	// Process management routes
+	scripts.Post("/:id/run", a.processHandler.RunScript)
+
+	processes := api.Group("/processes")
+	processes.Get("/", a.processHandler.GetProcesses)
+	processes.Post("/:id/stop", a.processHandler.StopProcess)
 }
 
 func (a *App) Start() error {

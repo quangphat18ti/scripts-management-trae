@@ -30,3 +30,15 @@ Bạn có thể mở rộng thêm các tính năng như:
 - Thêm tính năng chạy script
 - Thêm lịch sử phiên bản script
 - Thêm tính năng comment/feedback cho script được chia sẻ
+
+## Các bước triển khai
+1. Thiết kế cơ sở dữ liệu:
+
+   - Xác định các bảng và quan hệ giữa chúng
+   - Sử dụng MongoDB để lưu trữ dữ liệu
+2. Dựa vào DB, tạo Model Script và ScriptShare
+3. Tạo Repository Script và ScriptShare
+4. Tạo Service Script và ScriptShare
+5. Tạo Controller Script và ScriptShare
+6. Tạo Router Script và ScriptShare
+7. Cập nhật lại main.go để thêm các router mới và dependency
