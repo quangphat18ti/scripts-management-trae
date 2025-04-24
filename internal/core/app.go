@@ -18,13 +18,14 @@ import (
 )
 
 type App struct {
-	config      *config.Config
-	logger      *zap.Logger
-	fiber       *fiber.App
-	authHandler *handlers.AuthHandler
-	userHandler *handlers.UserHandler
-	userService *services.UserService
-	jwtManager  *utils.JWTManager
+	config        *config.Config
+	logger        *zap.Logger
+	fiber         *fiber.App
+	authHandler   *handlers.AuthHandler
+	userHandler   *handlers.UserHandler
+	userService   *services.UserService
+	scriptHandler *handlers.ScriptHandler
+	jwtManager    *utils.JWTManager
 }
 
 func NewApp(config *config.Config, logger *zap.Logger, db *mongo.Database) *App {
@@ -65,7 +66,6 @@ func NewApp(config *config.Config, logger *zap.Logger, db *mongo.Database) *App 
 	return app
 }
 
-// In the setupRoutes function, add:
 func (a *App) setupRoutes() {
 	// Health check route
 	a.fiber.Get("/health", func(c *fiber.Ctx) error {
@@ -90,6 +90,16 @@ func (a *App) setupRoutes() {
 	users.Post("/", middleware.RoleAuth(models.RoleRoot, models.RoleAdmin), a.userHandler.CreateUser)
 	users.Delete("/:id", middleware.RoleAuth(models.RoleRoot, models.RoleAdmin), a.userHandler.DeleteUser)
 	users.Put("/:id/password", middleware.RoleAuth(models.RoleRoot, models.RoleAdmin), a.userHandler.ChangePassword)
+
+	// Script management routes
+	scripts := api.Group("/scripts")
+	scripts.Post("/", a.scriptHandler.CreateScript)
+	scripts.Get("/", a.scriptHandler.GetUserScripts)
+	scripts.Get("/:id", a.scriptHandler.GetScript)
+	scripts.Put("/:id", a.scriptHandler.UpdateScript)
+	scripts.Delete("/:id", a.scriptHandler.DeleteScript)
+	scripts.Post("/:id/share", a.scriptHandler.ShareScript)
+	scripts.Delete("/:id/share/:userId", a.scriptHandler.RevokeShare)
 }
 
 func (a *App) Start() error {

@@ -27,14 +27,18 @@ func main() {
 
 	// Register repositories
 	container.Provide(repository.NewUserRepository)
+	container.Provide(repository.NewScriptRepository)
+	container.Provide(repository.NewScriptShareRepository)
 
 	// Register services (order matters)
 	container.Provide(services.NewAuthService)
 	container.Provide(services.NewUserService)
+	container.Provide(services.NewScriptService)
 
 	// Register handlers
 	container.Provide(handlers.NewAuthHandler)
 	container.Provide(handlers.NewUserHandler)
+	container.Provide(handlers.NewScriptHandler)
 
 	// Register app
 	container.Provide(core.NewApp)
