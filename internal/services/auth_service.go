@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 
-	"golang.org/x/crypto/bcrypt"
 	"scripts-management/internal/models"
 	"scripts-management/internal/repository"
 	"scripts-management/pkg/utils"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
@@ -15,11 +16,29 @@ type AuthService struct {
 	jwtManager *utils.JWTManager
 }
 
-func NewAuthService(userRepo *repository.UserRepository, jwtManager *utils.JWTManager) *AuthService {
+func NewAuthService(
+	userRepo *repository.UserRepository,
+	jwtManager *utils.JWTManager,
+) *AuthService {
 	return &AuthService{
 		userRepo:   userRepo,
 		jwtManager: jwtManager,
 	}
+}
+
+func (s *AuthService) CreateUser(ctx context.Context, req *models.SignupRequest) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user := &models.User{
+		Username: req.Username,
+		Password: string(hashedPassword),
+		Role:     req.Role,
+	}
+
+	return s.userRepo.Create(ctx, user)
 }
 
 func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (string, error) {
@@ -33,19 +52,4 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (stri
 	}
 
 	return s.jwtManager.GenerateToken(user.ID, user.Username, string(user.Role))
-}
-
-func (s *AuthService) Signup(ctx context.Context, req *models.SignupRequest) error {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-
-	user := &models.User{
-		Username: req.Username,
-		Password: string(hashedPassword),
-		Role:     req.Role,
-	}
-
-	return s.userRepo.Create(ctx, user)
 }

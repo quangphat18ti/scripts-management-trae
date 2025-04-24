@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"scripts-management/internal/models"
 	"scripts-management/internal/services"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type AuthHandler struct {
@@ -44,7 +45,7 @@ func (h *AuthHandler) Signup(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.authService.Signup(c.Context(), &req); err != nil {
+	if err := h.authService.CreateUser(c.Context(), &req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})

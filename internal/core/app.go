@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,6 +10,8 @@ import (
 
 	"scripts-management/internal/config"
 	"scripts-management/internal/handlers"
+	"scripts-management/internal/middleware"
+	"scripts-management/internal/models"
 	"scripts-management/internal/repository"
 	"scripts-management/internal/services"
 	"scripts-management/pkg/utils"
@@ -19,6 +22,9 @@ type App struct {
 	logger      *zap.Logger
 	fiber       *fiber.App
 	authHandler *handlers.AuthHandler
+	userHandler *handlers.UserHandler
+	userService *services.UserService
+	jwtManager  *utils.JWTManager
 }
 
 func NewApp(config *config.Config, logger *zap.Logger, db *mongo.Database) *App {
@@ -59,6 +65,7 @@ func NewApp(config *config.Config, logger *zap.Logger, db *mongo.Database) *App 
 	return app
 }
 
+// In the setupRoutes function, add:
 func (a *App) setupRoutes() {
 	// Health check route
 	a.fiber.Get("/health", func(c *fiber.Ctx) error {
@@ -69,6 +76,20 @@ func (a *App) setupRoutes() {
 	auth := a.fiber.Group("/auth")
 	auth.Post("/login", a.authHandler.Login)
 	auth.Post("/signup", a.authHandler.Signup)
+
+	// Initialize root account
+	if err := a.userService.InitRootAccount(context.Background()); err != nil {
+		a.logger.Fatal("Failed to initialize root account", zap.Error(err))
+	}
+
+	// User management routes
+	api := a.fiber.Group("/api", middleware.AuthMiddleware(a.jwtManager))
+
+	// User management (Root and Admin only)
+	users := api.Group("/users")
+	users.Post("/", middleware.RoleAuth(models.RoleRoot, models.RoleAdmin), a.userHandler.CreateUser)
+	users.Delete("/:id", middleware.RoleAuth(models.RoleRoot, models.RoleAdmin), a.userHandler.DeleteUser)
+	users.Put("/:id/password", middleware.RoleAuth(models.RoleRoot, models.RoleAdmin), a.userHandler.ChangePassword)
 }
 
 func (a *App) Start() error {
